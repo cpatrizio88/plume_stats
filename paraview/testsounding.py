@@ -12,8 +12,8 @@ var_names = soundings.variables.keys()
 sound_var = soundings.variables[var_names[3]]
 
 
-nc_out = Dataset('testsounding.nc', 'w', clobber = True, format='NETCDF4')
-
+#nc_out = Dataset('testsounding.nc', 'w', clobber = True, format='NETCDF4')
+nc_out = Dataset('testsounding.nc', 'w', clobber = True)
 
 
 nc_out.createDimension('x', 50)
@@ -32,13 +32,13 @@ y = np.arange(-1000, 1000, 100)
 height = sound_var[:,1]
 z = height
 
-temp = sound_var[:,2]
+temp_data = sound_var[:,2]
 
 temp_field = nc_out.createVariable('temp_field', 'f4', ('x', 'y', 'z'))
 
-for i in x:
-    for j in y:
-        temp[i,j,:] = temp
+for rownum,i in enumerate(x):
+    for colnum,j in enumerate(y):
+        temp[i,j,:] = temp_data
 
 
 
