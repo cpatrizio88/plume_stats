@@ -41,8 +41,8 @@ def testtime():
     
     Yinit = [0.5, height_800]  #(intial velocity = 0.5 m/s, initial height in m)
     tinit = 0
-    tfin = 2500
-    dt = 10
+    tfin = 1000
+    dt = 5
     
     #want to integrate F using ode45 (from MATLAB) equivalent integrator
     r = ode(F).set_integrator('dopri5')
@@ -53,7 +53,8 @@ def testtime():
     t = np.array(tinit)
     
     #stop integration when the parcel changes direction, or time runs out
-    while r.successful() and r.t < tfin and r.y[0] > 0:
+    #while r.successful() and r.t < tfin and r.y[0] > 0:
+    while r.successful() and r.t < tfin: 
         #find y at the next time step
         #(r.integrate(t) updates the fields r.y and r.t so that r.Y = F(t) and r.t = t 
         #where F is the function being integrated)
@@ -64,10 +65,10 @@ def testtime():
 
     #create netCDF file to hold time evolution of cloud parcel
     nc_out = Dataset('adiabatic_ascent.nc', 'w', format = 'NETCDF3_CLASSIC')
-    nc_out.createDimension('x', 50)
-    nc_out.createDimension('y', 50)
-    nc_out.createDimension('z', len(height))
-    nc_out.createDimension('time', None)
+    nc_out.createDimension('x', 10)
+    nc_out.createDimension('y', 10)
+    nc_out.createDimension('z', 200)
+    nc_out.createDimension('time', len(t))
     
     x = nc_out.createVariable('x', 'f4', ('x',))
     y = nc_out.createVariable('y', 'f4', ('y',))
@@ -82,9 +83,9 @@ def testtime():
     time.units = 'seconds since 2013-05-08 00:00:00 +0:00'
     w_l.units = 'kg liquid water per kg air'
     
-    x[:] = np.linspace(-5*10e3, 5*10e3, len(x))
-    y[:] = np.linspace(-5*10e3, 5*10e3, len(y))
-    z[:] = np.linspace(height[0], height[-1], len(height))
+    x[:] = np.linspace(-5e3, 5e3, len(x))
+    y[:] = np.linspace(-5e3, 5e3, len(y))
+    z[:] = np.linspace(height[0], height[-1], len(z))
     time[:] = t   
     
     cloud_height = Y[:,1]   
@@ -95,16 +96,18 @@ def testtime():
     for i in range(0, len(t)):
         the_press = interpPress(cloud_height[i])*100.
         Tcloud[i], wvCloud[i], wlCloud[i] = tinvert_thetae(thetaeVal,
-                                                        wTcloud, the_press)   
+                                                        wTcloud, the_press)
+        print wlCloud[i]
+                                                           
        
     #fill in the liquid water field at each time step  
     for tindex, tval in enumerate(t):
         #first initialize to zero
         w_l[tindex,:,:,:] = np.zeros((len(x), len(y), len(z)))
         #find index in z closest to the current cloud height
-        cloud_height_index = np.where(abs(cloud_height[tindex] - z) < 200.)[0][0]
+        cloud_height_index = np.where(abs(cloud_height[tindex] - z) < 100.)[0][0]
         #fill in the liquid water content at this height
-        w_l[tindex,cloud_height_index,:,:] = wlCloud[tindex]*np.ones((len(x), len(y)))
+        w_l[tindex,cloud_height_index,:,:] = wlCloud[tindex]*np.ones((len(y), len(x)))
             
 #F returns the buoyancy (and height) at a given time step and height
 def F(t, y, thetae0, interpTenv, interpTdEnv, interpPress):
