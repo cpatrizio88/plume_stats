@@ -11,6 +11,7 @@ infile = Dataset(ncfile_in, 'r')
 outfile = Dataset(ncfile_out, mode='w',format='NETCDF3_CLASSIC')
 
 for (name, value) in infile.dimensions.items():
+    print "copying dimension: ", name
     if name != 'time':
         outfile.createDimension(name, len(value))
 
@@ -22,12 +23,14 @@ for globalatt in infile.ncattrs():
 for (inname, invar) in infile.variables.items():
     dim = invar.dimensions
     if 'time' in dim and len(dim) != 1:
+        print "copying variable: ", inname
         newdim = tuple(y for y in dim if y != 'time')
         outvar = outfile.createVariable(inname, invar.dtype, newdim)
         newvar = invar[...]
         newvar = newvar.squeeze()
         outvar[:] = newvar
     elif 'time' not in dim:
+        print "copying variable: ", inname
         outvar = outfile.createVariable(inname, invar.dtype, dim)
         outvar[:] = invar[...]
         
@@ -36,6 +39,9 @@ for (inname, invar) in infile.variables.items():
 
     for var in outfile.variables.values():
         print var
+
+infile.close()
+outfile.close()
 
 
         
