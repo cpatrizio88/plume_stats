@@ -26,7 +26,7 @@ tlen = len(ncFile_names)
 varname = 'QV'
 initialize_ncFile('testBOMEXfile.nc', varname, xlen, ylen, zlen, tlen)
 
-nc_out = Dataset('testncfile.nc', mode = 'r+')
+nc_out = Dataset('testBOMEXfile.nc', mode = 'r+')
 
 nc_out.variables['x'][:] = nc_in.variables['x'][:]
 nc_out.variables['y'][:] = nc_in.variables['y'][:]
