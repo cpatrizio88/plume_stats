@@ -10,6 +10,8 @@ import glob
 
 #get a list of all the netcdf BOMEX files in the current directory
 ncFile_names = glob.glob('BOMEX*nc')
+#sort the files chronologically (assuming they are time stamped)
+ncFile_names.sort()
 print "files to stack: "
 for f in ncFile_names:
 	print f
@@ -36,12 +38,12 @@ x[:] = nc_in.variables['x'][:]
 y[:] = nc_in.variables['y'][:]
 z[:] = nc_in.variables['z'][:]
 time = nc_out.variables['time']
-#assume some value for the time step
-dt = 1
+#the time step is 6 min. for this particular case
+dt = 6
 tstart = 0
 tend = tstart + dt*tlen
 time[:] = np.arange(tstart, tend, dt)
-time.units = 'seconds since 2013-05-08 00:00:00 +0:00'
+time.units = 'minutes since 2013-05-08 00:00:00 +0:00'
 print 'file created, start stacking'
 
 #loop through all of the files
