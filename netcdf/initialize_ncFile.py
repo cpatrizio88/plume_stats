@@ -23,4 +23,4 @@ def initialize_ncFile(filename, varname, xlen, ylen, zlen, tlen):
 	z.units = 'meters'
 	time.units = 'seconds since 2013-05-08 00:00:00 +0:00'
 
-	nc_out.close()
+	return nc_out
