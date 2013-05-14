@@ -38,7 +38,7 @@ time = nc_out.variables['time']
 dt = 1
 tstart = 0
 tend = tstart + dt*tlen
-time[:] = np.arange(tstart, tend, tlen)
+time[:] = np.arange(tstart, tend, dt)
 
 #loop through all of the files
 #at each iteration, fill in the value of the variable of interest at the current 
