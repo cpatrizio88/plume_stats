@@ -1,9 +1,10 @@
+
 from netCDF4 import Dataset
 import numpy as np
 import os
 
 #initializes a netCDF file to hold a single variable with dimensions x, y, z, time
-#dimension length is specified by user
+#dimension lengths are specified by user
 def initialize_ncFile(filename, varname, xlen, ylen, zlen, tlen): 
     
 
