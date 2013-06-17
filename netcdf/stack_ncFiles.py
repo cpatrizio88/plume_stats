@@ -34,8 +34,8 @@ nc_out = initialize_ncFile(outfile, varname, xlen, ylen, zlen, tlen)
 #set up units, name, etc
 varin = nc_in.variables[varname]
 varout = nc_out.variables[varname]
-varout.units = varin.units
-varout.long_name = varin.long_name
+for varattr in varin.ncattrs():
+    varout.setncattr(varattr,varin.getncattr(varattr))
 #fill in dimensions
 x = nc_out.variables['x']
 y = nc_out.variables['y']
