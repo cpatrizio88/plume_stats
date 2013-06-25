@@ -44,24 +44,24 @@ print "tr_mean.shape", tr_mean.shape
 #(according to Couvreux, 2009) at a given time and height index
 stdev_min = lambda i, j: (0.05/z[j])*sum(tr_stdev[i, 0:j]*dz[0:j])
 
+#initialize arrays
 tr_sample = np.zeros(tr.shape)
+tr_threshold = np.zeros(tr.shape)
 #scaling factor for sampling threshold
 m = 1
-print 'sampling...'
+
+print 'calculating thresholds...'
 for i in np.arange(tlen):
-	print "time index: ", i
 	for j in np.arange(zlen):
-		print "height index: ", j
-		tr_threshold = tr_mean[i, j] + m*max(tr_stdev[i, j], stdev_min(i, j)) 
-	    #initialize logical indexing array to be the same shape as tracer array 
-		#(w/ all False entries)
-		hit = np.zeros(tr.shape) > 1
-		#find the grid cells in the current x-y slice that should be sampled
-		hit[i, j, :, :] = tr[i, j, :, :] > tr_threshold
-		tr_sample[hit] = tr[hit]
+		#keep track of thresholds at each time and height
+		tr_threshold[i, j, :, :] = tr_mean[i, j] + m*max(tr_stdev[i, j], stdev_min(i, j)) 
+	
 #fill netcdf tracer variable with sampled points
+print 'sampling...'
+hit = tr > tr_threshold
+tr_sample[hit] = tr[hit]
 tracer_var[:] = tr_sample
-tr
+
 nc_out.close()
 
 
