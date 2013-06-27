@@ -3,13 +3,13 @@ import numpy as np
 from initialize_ncFile import initialize_ncFile
 import glob
 
-#script to combine a series of time steps of a variable of interest
-#(contained in separate netCDF files) into a single netCDF file 
+#script to combine a series of time steps of variables
+#(the time steps are contained in separate netCDF files) into a single netCDF file 
 
-#assuming the variable of interest has 3D spatial dependence
+#assuming all variables have 3D spatial dependence
 
 #get a list of all the netcdf files in the current directory
-ncFile_names = glob.glob('BOMEX*nc')
+ncFile_names = glob.glob('NCHAPP1*nc')
 #sort the files chronologically (assuming they are time stamped)
 ncFile_names.sort()
 print "files to stack: "
@@ -26,16 +26,17 @@ print "x length", xlen
 print "y length", ylen
 print "z length", zlen
 print "t length", tlen
-#variable to stack
-varname = 'TR01'
-outfile = 'testBOMEXtracer_nowind.nc'
+#variables to stack
+varnames = ['TR01', 'W']
+outfile = 'testNCHAPP1tracer.nc'
 print 'creating new file: ', outfile
-nc_out = initialize_ncFile(outfile, varname, xlen, ylen, zlen, tlen)
+nc_out = initialize_ncFile(outfile, varnames,  xlen, ylen, zlen, tlen)
 #set up units, name, etc
-varin = nc_in.variables[varname]
-varout = nc_out.variables[varname]
-for varattr in varin.ncattrs():
-    varout.setncattr(varattr,varin.getncattr(varattr))
+for varname in varnames:
+        varin = nc_in.variables[varname]
+        varout = nc_out.variables[varname]
+        for varattr in varin.ncattrs():
+                varout.setncattr(varattr,varin.getncattr(varattr))
 #fill in dimensions
 x = nc_out.variables['x']
 y = nc_out.variables['y']
@@ -45,32 +46,33 @@ y[:] = nc_in.variables['y'][:]
 z[:] = nc_in.variables['z'][:]
 time = nc_out.variables['time']
 #the time step is 4 min. for this particular case
-dt = 4 
+dt = 2
 tstart = 0
 tend = tstart + dt*tlen
 time[:] = np.arange(tstart, tend, dt)
 time.units = 'minutes since 2013-05-08 00:00:00 +0:00'
 print 'file created, start stacking'
 
-#loop through all of the files
-#at each iteration, fill in the value of the variable of interest at the current 
-#time step
-print 'copying variable', varname
+#loop through all of the files, at each iteration
+#copy over the values of the variables
+print 'copying variables' , varnames
 for i, fname in enumerate(ncFile_names):
 	print '		loading file: ', fname
 	nc_in = Dataset(fname, 'r')
-	varin = nc_in.variables[varname][...]
-       #eliminate dimensions with length 1
-	varin = varin.squeeze()
-	print '		copying variable...'
-	varout = nc_out.variables[varname]
-	varout[i, :, : ,:] = varin
+        for varname in varnames:
+            varin = nc_in.variables[varname][...]
+            #eliminate dimensions with length 1
+            varin = varin.squeeze()
+            print '		copying variable', varname
+            varout = nc_out.variables[varname]
+            varout[i, :, : ,:] = varin
 
 print "done stacking, the variables are: "
 for var in nc_out.variables.values():
 	print var
 
 nc_out.close()
+nc_in.close()
 
 
 
