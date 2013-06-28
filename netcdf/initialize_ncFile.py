@@ -6,13 +6,12 @@ import os
 """
 initializes a netCDF file to hold multiple variables with dimensions x, y, z, time
 
-inputs: xlen, ylen, zlen, tlen - dimension lengths
+inputs: xlen, ylen, zlen - spatial dimension lengths
         varnames - list with variable names
-
-        note: (set tlen = None or 0 if variable is time independent)
+        optional argument - specify time dimension length if needed
 
 """
-def initialize_ncFile(filename, varnames, xlen, ylen, zlen, tlen):
+def initialize_ncFile(filename, varnames, xlen, ylen, zlen, *args):
     
 
     #an error is thrown if the file already exists, delete it first if it exists
@@ -30,7 +29,8 @@ def initialize_ncFile(filename, varnames, xlen, ylen, zlen, tlen):
     y = nc_out.createVariable('y', 'f8', ('y',))
     z = nc_out.createVariable('z', 'f8', ('z',))
     
-    if tlen:
+    if args:
+        tlen = args[0]
         nc_out.createDimension('time', tlen)
         time = nc_out.createVariable('time', 'f8', ('time',))
         for varname in varnames:
