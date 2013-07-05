@@ -134,9 +134,8 @@ def sample_core(filename, *args):
     thetav_z = np.mean(np.mean(thetav, axis=1), axis=1)
     zlen = len(thetav_z)
     thetav_z = thetav_z.reshape((zlen,1,1))
-    
     delta_thetav = thetav - thetav_z
-    #find positively buoyant, upward moving grid cells (add liquid water as well to criteria?)
+    #find positively buoyant, upward moving grid cells 
     hit = np.logical_and(delta_thetav > 0, w > 0)
     if sample_liqwater:
         hit = np.logical_and(qn > 0, hit)
