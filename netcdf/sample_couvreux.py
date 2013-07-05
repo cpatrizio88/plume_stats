@@ -10,16 +10,15 @@ from copy_ncFile import copy_ncFile
    note: the fields should be functions of (t, z, y, x)
 
    inputs: filename - name of netcdf file to sample from
-           zb - cloud base, None if no clouds
-           zt - cloud top, None if no clouds
+           optional paramters - zb and zt, cloud base and cloud top
+           
 
    output:
 
           a numpy array of booleans, True for grid points that pass the sampling criteria, False otherwise
           (the array with be the same dimension as the fields in the netcdf file)
-
 """
-def sample_couvreux(filename, zb, zt):
+def sample_couvreux(filename, *args):
 
         #open the input file
     nc_in = Dataset(filename, 'r')
@@ -32,8 +31,8 @@ def sample_couvreux(filename, zb, zt):
     w = w_var[:]
     z = z_var[:]
 
-    #if there are clouds, load liquid water variable
-    if zb:
+    #if cloud base specified, load liquid water variable
+    if args:
        qn_var = nc_in.variables['QN']
        qn = qn_var[:]
 
@@ -74,14 +73,16 @@ def sample_couvreux(filename, zb, zt):
     hit = np.logical_and(tr > tr_threshold, w > 0)
     #if there are clouds, add condition liquid water content > 0
     #to sampling criteria above height z - zb + (zt - zb)/4
-    if zb:
+    if args:
+            zb = args[0]
+            zt = args[1]
             #find height index corresponding to z =  zb + (zt - zb)/4
             cld_index = np.where(z > zb + (zt - zb)/4)[0][0]
             #update points that will be sampled
             hit[:,cld_index::,:,:] = np.logical_and(hit[:,cld_index::,:,:], qn[:,cld_index::,:,:] > 0)
 
     #remove single dimensions from hit
-    #(e.g. when sampling a single time slice, the netcdf file typically specifies time to be dimension of length 1)
+    #(e.g. when sampling a single time slice from a netcdf file, the time dimension may be length 1)
     hit = np.squeeze(hit)
 
     nc_in.close()
