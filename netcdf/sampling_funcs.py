@@ -96,15 +96,21 @@ def sample_couvreux(filename, *args):
   sample fields contained in a netcdf file using core sampling criteria
 
   input: filename - netcdf file to sample from
+         optional parameter - True if adding liquid water to sampling criteria
          
-  output: a numpy array of booleans, True for positively buoyant, upward moving grid points with liquid water, False otherwise
+  output: a numpy array of booleans, True for positively buoyant, upward moving grid points (optionally, with liquid water), False otherwise
 
 """
 
-def sample_core(filename)
+def sample_core(filename, *args):
+    if args:
+      sample_liqwater = args[0]
+    else:
+      sample_liqwater = False
     nc_in = Dataset(filename, 'r')
-    qn = nc_in.variables['QN'][:]
-    qn = np.squeeze(qn)
+    if sample_liqwater:
+        qn = nc_in.variables['QN'][:]
+        qn = np.squeeze(qn)
     T = nc_in.variables['TABS'][:]
     T = np.squeeze(T)
     qv = nc_in.variables['QV'][:]
@@ -129,9 +135,10 @@ def sample_core(filename)
     zlen = len(thetav_z)
     thetav_z = thetav_z.reshape((zlen,1,1))
     delta_thetav = thetav - thetav_z
-    #find positively buoyant, upward moving grid cells with liquid water
+    #find positively buoyant, upward moving grid cells 
     hit = np.logical_and(delta_thetav > 0, w > 0)
-    hit = np.logical_and(qn > 0, hit)
+    if sample_liqwater:
+        hit = np.logical_and(qn > 0, hit)
     return hit
 
 

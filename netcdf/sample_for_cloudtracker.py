@@ -20,7 +20,8 @@ netcdf files containing core, condensed and plume variables which are arrays of 
 nc_filenames = glob.glob('/tera/phil/cloudtracking/*[!_cldtrcksample].nc')
 
 #if you want liquid water to be part of the sampling criteria
-#set sample_liqwater to True
+#set sample_liqwater to True 
+#otherwise, if sample_liqwater is False (removes liquid water from core sampling criteria)
 sample_liqwater = False
 
 for filename in nc_filenames:
@@ -48,7 +49,7 @@ for filename in nc_filenames:
     if sample_liqwater:
         condensed = sample_condensed(filename)
         condensed = condensed/1
-    else:
+     else:
         condensed = np.zeros((zlen, ylen, xlen))
     #fill variables in nc_out with the masked arrays
     plume_var = nc_out.variables['plume']
