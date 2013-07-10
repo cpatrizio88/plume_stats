@@ -1,4 +1,6 @@
 import glob
+import site
+site.addsitedir('/home/cpatrizi/repos/casey/netcdf/')
 from netCDF4 import Dataset
 from sampling_funcs import sample_couvreux, sample_condensed, sample_core
 from initialize_ncFile import initialize_ncFile
@@ -17,7 +19,7 @@ netcdf files containing core, condensed and plume variables which are arrays of 
 
 """
 
-nc_filenames = glob.glob('/tera/phil/cloudtracking/*[!_cldtrcksample].nc')
+nc_filenames = glob.glob('/tera/phil/cloudtracking/BOMEX/BOMEX*[!_cldtrcksample].nc')
 
 #if you want liquid water to be part of the sampling criteria
 #set sample_liqwater to True 
@@ -49,7 +51,7 @@ for filename in nc_filenames:
     if sample_liqwater:
         condensed = sample_condensed(filename)
         condensed = condensed/1
-     else:
+    else:
         condensed = np.zeros((zlen, ylen, xlen))
     #fill variables in nc_out with the masked arrays
     plume_var = nc_out.variables['plume']
