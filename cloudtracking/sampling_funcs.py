@@ -39,11 +39,12 @@ def sample_couvreux(filename, *args):
        qn_var = nc_in.variables['QN']
        qn = qn_var[:]
 
+   
     tr_thresholds = compute_tracer_thresholds(tr, z)
 
     #find points that pass sampling criteria
-    print 'sampling plume...'
-    hit = np.logical_and(tr > tr_threshold, w > 0)
+    print 'sampling plume'
+    hit = np.logical_and(tr > tr_thresholds, w > 0)
     if sample_liqwater:
         hit = np.logical_or(hit, qn > 0)
 
@@ -107,7 +108,6 @@ def sample_core(filename, *args):
     thetav = Tv*(p0/p)**(Rd/cp)
     #calculate delta_thetav, the thetav anomaly (difference between thetav and mean thetav at a given height)
     #this is proportional to the buoyancy
-    print 'sampling core...'
     thetav_z = np.mean(np.mean(thetav, axis=1), axis=1)
     zlen = len(thetav_z)
     thetav_z = thetav_z.reshape((zlen,1,1))
@@ -115,10 +115,12 @@ def sample_core(filename, *args):
     #find positively buoyant, upward moving grid cells 
     hit = np.logical_and(delta_thetav > 0, w > 0)
     if sample_liqwater:
+        print 'sampling core...'
         hit = np.logical_and(qn > 0, hit)
         return hit
     else:
         tr_thresholds = compute_tracer_thresholds(tr, z)
+        print 'sampling core...'
         hit = np.logical_and(tr > tr_thresholds, hit)
         return hit
         
