@@ -43,7 +43,7 @@ def sample_couvreux(filename, *args):
     tr_thresholds = compute_tracer_thresholds(tr, z)
 
     #find points that pass sampling criteria
-    print 'sampling plume'
+    print 'sampling plume...'
     hit = np.logical_and(tr > tr_thresholds, w > 0)
     if sample_liqwater:
         hit = np.logical_or(hit, qn > 0)
@@ -129,7 +129,7 @@ def sample_core(filename, *args):
 def sample_condensed(filename):
     print 'sampling condensed...'
     nc_in = Dataset(filename)
-    qn = nc_in.variables['QN']
+    qn = nc_in.variables['QN'][:]
     hit = qn > 0
     hit = np.squeeze(hit)
     return hit
