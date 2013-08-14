@@ -2,7 +2,7 @@ import numpy as np
 import site
 site.addsitedir('/home/cpatrizi/repos/cloudtracker')
 import cloudtracker
-from cloudtracker.utility_functions import index_to_zyx, zyx_to_index, find_halo, expand_indexes, calc_radii
+from cloudtracker.utility_functions import index_to_zyx, zyx_to_index, find_halo, expand_indexes
 import cPickle
 import glob
 import matplotlib.pyplot as plt
@@ -53,26 +53,26 @@ def main():
     lifetimes = np.zeros(maxid+1)
     #areas of xy projections of clusters
     areas = np.zeros(maxid+1)
-
+    
     #clusters is a dictionary of Cluster objects
     #(see cloud_objects.py in cloudtracker)
-    for clusters in clusters_list:
+    for t, clusters in enumerate(clusters_list):
         #iterate over each cluster at the current time
         #increment the lifetime if it has a condensed region,
         # and find the area of xy cloud projection
         for id, cluster in clusters.iteritems():
             if cluster.has_condensed():
+                xy_proj = set()
                 lifetimes[id] = lifetimes[id] + dt
             for index in cluster.condensed_mask():
-                xy_proj = set()
                 proj = index_to_xy(index, ny, nx)
                 xy_proj.add(proj)
-                areas[id] = areas[id] + len(xy_proj)
+            areas[id] = areas[id] + len(xy_proj)
 
     #filter out noise (i.e. clusters that exist only for a single time step)
     cloud_ids = np.where(lifetimes > dt)[0]
-
-    t = 65
+    
+    t = 90
     clusters = clusters_list[t]
     #find cloud/environment depths for each cloud at time step t
     cloud_depths = find_cloud_depths(clusters, cloud_ids, MC)
@@ -96,42 +96,10 @@ def main():
     l = np.sqrt(areas)
     print "mean horizontal length scale (m): %4.3f" % (np.mean(l))
 
-    
     print "cloud ids at time step %2d: " % (t), cloud_depths.keys()
 
-    cloud_id = 9404
-
-    #distances contains grid point distance (in m) from cloud boundary
-    distances = np.empty(nx*ny*nz)
-    distances[:] = np.NAN
-
-    print 'calculating cloud grid point distances to cloud edges'
-    #iterate over all clouds
-    for id, depths in cloud_depths.iteritems():
-        #iterate over depth levels in a given cloud
-        for n, depth_indices in enumerate(depths):
-            #calculate the distance from cloud boundary at all cloud indices
-            cloud_boundary = depths[0]
-            for index in depth_indices:
-                distance = calc_distance(np.array([index]), cloud_boundary, MC)
-                distances[index] = -min(distance)
-                       
-    print 'calculating environment grid point distances to cloud edges'
-    print 'env depth: ', len(env_depth)
-    max_depth = 20
-    print 'max depth: ', max_depth
-    #iterate over depth levels in the environment
-    for n, depth_indices in enumerate(env_depth):
-        if n > max_depth:
-            break
-        print 'depth', n
-        #calculate the distance from cloud boundary at environment indices
-        for index in depth_indices:
-            distance = calc_distance(np.array([index]), env_halo, MC)
-            distances[index] = min(distance)
-
-    distances_indices = np.where(np.isfinite(distances))
-    distances = distances[distances_indices]
+    #test at a single height level
+    h = 760/dz
 
     #get variable fields at timestep t
     filenames = glob.glob('/tera/phil/sam_cpatrizi/OUT_3D/BOMEXTR*.nc')
@@ -140,27 +108,49 @@ def main():
     qv = ncfile.variables['QV'][:]
     qn = ncfile.variables['QN'][:]
     qt = (qn + qv).flatten()
-    qt = qt[distances_indices]
 
+    #distances contains grid point distance (in m) from cloud boundary
+    distances = np.zeros_like(qt)
+     
+    print 'calculating cloud grid point distances to cloud edges'
+    for id, depths in cloud_depths.iteritems():
+       for n, indices in enumerate(depths):
+            #assuming grid spacing is equal in all directions
+            distances[indices] = -(n+.5)*MC['dx']
+            
+    print 'calculating environment grid point distances to cloud edges'
+    for n, indices in enumerate(env_depth):
+           distances[indices] = (n+.5)*MC['dx']
+    
+    indices_at_h = find_indices_at_height(h, np.arange(len(distances)), MC)
+    distances_at_h = distances[indices_at_h]
+    
     r1, r2 = min(distances), max(distances)
     q1, q2 = min(qt), max(qt)
-
     xbins = np.linspace(r1, r2, 101)
     ybins = np.linspace(q1, q2, 101)
-    plt.figure(1)
+    plt.figure()
     hist2d, ybins, xbins = np.histogram2d(qt, distances, bins = (ybins, xbins))
-
     plt.pcolor(xbins, ybins, hist2d, cmap = cm.spectral_r, vmin=0)
     plt.colorbar()
     plt.xlabel('distance from cloud edge (m)')
     plt.ylabel('total mixing ratio (g/kg)')
+    plt.figure()
+    r1, r2 = min(distances_at_h), max(distances_at_h)
+    xbins = np.linspace(r1, r2, 101)
+    hist2d, ybins, xbins = np.histogram2d(qt[indices_at_h], distances_at_h, bins = (ybins, xbins))
+    plt.pcolor(xbins, ybins, hist2d, cmap = cm.spectral_r, vmin=0)
+    plt.colorbar()
+    plt.xlabel('distance from cloud edge (m)')
+    plt.ylabel('total mixing ratio (g/kg)')
+    plt.title('at height {0} m.'.format(h*dz))
     
     bins = np.arange(31)
-    plt.figure(2)
+    plt.figure()
     plt.hist(lifetimes, bins)
     plt.xlabel('lifetime (min)')
     plt.ylabel('number of clouds')
-    plt.figure(3)
+    plt.figure()
     bins = np.linspace(0,1000,50)
     plt.hist(l, bins)
     plt.xlabel(r'projected area$^{1/2}$ (m)')
@@ -274,7 +264,8 @@ def find_all_indices(clusters, MC):
 
     return env_indices, cloud_indices
 
-
+#calculates the distance between index1 and index2
+#(note: index2 or index1 may be an array of indices, but not both)
 def calc_distance(index1, index2, MC):
 
     point1 = index_to_zyx(index1, MC)
@@ -285,16 +276,22 @@ def calc_distance(index1, index2, MC):
     ny, nx = MC['ny'], MC['nx']
     dy, dx, dz = MC['dy'], MC['dx'], MC['dz']
         
-    delta_x = (point2[2, :] - point1[2, :])*dx
+    delta_x = (point2[2, ...] - point1[2, ...])*dx
 
-    delta_y = (point2[1, :] - point1[1, :])*dy
+    delta_y = (point2[1, ...] - point1[1, ...])*dy
    
-    delta_z =(point2[0, :] - point1[0, :])*dz
+    delta_z =(point2[0, ...] - point1[0, ...])*dz
 
     return np.sqrt(delta_x**2 + delta_y**2 + delta_z**2)
-                                        
 
+def find_indices_at_height(h, indices, MC):
+
+    nx = MC['nx']
+    ny = MC['ny']
     
+    hit = np.logical_and(h*nx*ny < indices, indices <= (h+1)*nx*ny)
+    return indices[hit]
+
 if __name__ == '__main__':
     main()
 
