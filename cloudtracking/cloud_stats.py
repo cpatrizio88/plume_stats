@@ -48,7 +48,9 @@ def cloud_stats(filenames, t):
 
     #lifetimes of clusters
     lifetimes = np.zeros(maxid+1)
-    #areas of xy projections of clusters
+    #lifetimes of clouds
+    cloud_lifetimes = np.zeros(maxid+1)
+    #areas of xy projections of clouds
     areas = np.zeros(maxid+1)
     
     #clusters is a dictionary of Cluster objects
@@ -58,13 +60,14 @@ def cloud_stats(filenames, t):
         #increment the lifetime if it has a condensed region,
         #and find the area of xy cloud projection
         for id, cluster in clusters.iteritems():
+            lifetimes[id] = lifetimes[id] + dt
             if cluster.has_condensed():
-                lifetimes[id] = lifetimes[id] + dt
+                cloud_lifetimes[id] = cloud_lifetimes[id] + dt
                 proj = index_to_xy(cluster.condensed_mask(), MC).T
                 areas[id] = areas[id] + len(proj)
 
     #filter out noise (i.e. clusters that exist only for a single time step)
-    cloud_ids = np.where(lifetimes > dt)[0]
+    cloud_ids = np.where(np.logical_and(lifetimes > dt, cloud_lifetimes > 0))[0]
     
     clusters = clusters_list[t]
     #find cloud/environment depths for each cloud at time step t
@@ -73,10 +76,10 @@ def cloud_stats(filenames, t):
     env_halo = find_halo(env_indices, MC)
     env_depth = label_depth(env_indices, env_halo, MC)
 
-    lifetimes = lifetimes[cloud_ids]
+    cloud_lifetimes = cloud_lifetimes[cloud_ids]
     areas = areas[cloud_ids]
     #average the cloud projection areas over their lifetime
-    areas = areas*(dx*dy)/(lifetimes/dt)
+    areas = areas*(dx*dy)/(cloud_lifetimes/dt)
 
     distances = np.zeros(ny*nx*nz)
 
@@ -88,7 +91,7 @@ def cloud_stats(filenames, t):
     for n, indices in enumerate(env_depth):
         distances[indices] = (n+.5)*MC['dx']
 
-    return lifetimes, areas, distances
+    return cloud_lifetimes, areas, distances
 
 
 
