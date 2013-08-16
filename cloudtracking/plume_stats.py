@@ -50,7 +50,10 @@ def plume_stats(filenames):
 
     #lifetimes of clusters
     lifetimes = np.zeros(maxid+1)
-    #areas of xy projections of clusters
+    #lifetimes of clusters before condensing
+    lt_before_condensed = np.zeros(maxid+1)
+    
+    #areas of xy projections of plumes (before condensed region forms)
     areas = np.zeros(maxid+1)
     #keep track of plumes that form condensed regions
     #initialize all plumes to False
@@ -63,9 +66,11 @@ def plume_stats(filenames):
         #increment the lifetime of the plume
         #and find the area of plume x-y projection
         for id, cluster in clusters.iteritems():
-           lifetimes[id] = lifetimes[id] + dt
-           proj = index_to_xy(cluster.plume_mask(), MC).T
-           areas[id] = areas[id] + len(proj)
+           lifetimes[id]  = lifetimes[id] + dt
+           if not has_condensed[id]:
+             lt_before_condensed[id] = lt_before_condensed[id] + dt
+             proj = index_to_xy(cluster.plume_mask(), MC).T
+             areas[id] = areas[id] + len(proj)
            #if plume has condensed
            if cluster.has_condensed():
                has_condensed[id] = True
@@ -74,13 +79,14 @@ def plume_stats(filenames):
     plume_ids = np.where(lifetimes > dt)[0]
 
     #average the plume projection areas over their lifetime
-    areas = areas*(dx*dy)/(lifetimes/dt)
+    areas = areas*(dx*dy)/(lt_before_condensed/dt)
 
     lifetimes = lifetimes[plume_ids]
+    lt_before_condensed = lt_before_condensed[plume_ids]
     areas = areas[plume_ids]
     has_condensed = has_condensed[plume_ids]
 
-    return lifetimes, areas, has_condensed
+    return lt_before_condensed, areas, has_condensed
 
    
 
