@@ -61,7 +61,8 @@ plt.ylabel('number of dry plumes')
 
 #------cloud output-------
 t = 90
-lifetimes, areas, distances = cloud_stats(filenames, t)
+h = 840/MC['dz']
+lifetimes, areas, distances, distances_at_h, cloud_ids_at_h = cloud_stats(filenames, t, h)
 
 print "number of clouds: ",  len(lifetimes)
 
@@ -72,7 +73,6 @@ l = np.sqrt(areas)
 print "cloud mean horizontal length scale (m): %4.3f" % np.mean(l)
 
 #get variable fields at timestep t
-t = 90
 fields = glob.glob('/tera/phil/sam_cpatrizi/OUT_3D/BOMEXTR*.nc')
 fname = fields[t]
 ncfile = Dataset(fname, 'r')
@@ -80,11 +80,10 @@ qv = ncfile.variables['QV'][:]
 qn = ncfile.variables['QN'][:]
 qt = (qn + qv).flatten()
 
-#look at a single height level
-h = 720/MC['dz']
 
 indices_at_h = find_indices_at_height(h, np.arange(len(distances)), MC)
-distances_at_h = distances[indices_at_h]
+#print indices_at_h
+#distances_at_h = distances[indices_at_h]
 
 r1, r2 = min(distances), max(distances)
 q1, q2 = min(qt), max(qt)
@@ -97,15 +96,18 @@ plt.colorbar()
 plt.xlabel('distance from cloud edge (m)')
 plt.ylabel('total mixing ratio (g/kg)')
 plt.title('using cloudtracker output at timestep {0}'.format(t))
-plt.figure()
-r1, r2 = min(distances_at_h), max(distances_at_h)
-xbins = np.linspace(r1, r2, 101)
-hist2d, ybins, xbins = np.histogram2d(qt[indices_at_h], distances_at_h, bins = (ybins, xbins))
-plt.pcolor(xbins, ybins, hist2d, cmap = cm.spectral_r, vmin=0)
-plt.colorbar()
-plt.xlabel('distance from cloud edge (m)')
-plt.ylabel('total mixing ratio (g/kg)')
-plt.title('using cloudtracker output at timestep {0}, height {1} m.'.format(t, h*MC['dz']))
+if len(distances_at_h):
+    plt.figure()
+    r1, r2 = min(distances_at_h), max(distances_at_h)
+    xbins = np.linspace(r1, r2, 101)
+    hist2d, ybins, xbins = np.histogram2d(qt[indices_at_h], distances_at_h, bins = (ybins, xbins))
+    plt.pcolor(xbins, ybins, hist2d, cmap = cm.spectral_r, vmin=0)
+    plt.colorbar()
+    plt.xlabel('horizontal distance from cloud edge (m)')
+    plt.ylabel('total mixing ratio (g/kg)')
+    plt.title('using cloudtracker output at timestep {0}, height {1} m.'.format(t, h*MC['dz']))
+else:
+    print 'no clouds at height {0} m.'.format(h*MC['dz'])
 
 bins = np.arange(31)
 plt.figure()
@@ -113,6 +115,7 @@ plt.hist(lifetimes, bins)
 plt.xlabel('lifetime (min)')
 plt.ylabel('number of clouds')
 bins = np.linspace(0,500,50)
+plt.figure()
 plt.hist(l, bins)
 plt.xlabel(r'projected area$^{1/2}$ (m)')
 plt.ylabel('number of clouds')
