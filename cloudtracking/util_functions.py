@@ -82,18 +82,19 @@ def label_depth(indices, halo, MC):
  (as described in label_depth) 
 
 inputs: clusters - a dictionary of Cluster objects at a single time step (indexed by cloud id)
-         plume_ids - a list of cloud ids, must be a subset of the id's found in clusters
+         cloud_ids - a list of ids for which cloud depth arrays will be computed
+                     must be a subset of the id's found in clusters
          MC - dictionary containing grid parameters (as in model_config.cfg)
 
  outputs: see above
 
 """
 
-def label_cloud_depths(clusters, plume_ids, MC):
+def label_cloud_depths(clusters, ids, MC):
     cloud_depths = {}
-    env_indices, cloud_indices = find_all_indices(clusters, MC)
+    #env_indices, cloud_indices = find_all_indices(clusters, MC)
     for id, cluster in clusters.iteritems():
-        if id in plume_ids:
+        if id in ids:
               indices = cluster.condensed_mask()
               cloud_halo = cluster.condensed_halo()
               cloud_depths[id] = label_depth(indices, cloud_halo, MC)
@@ -141,13 +142,51 @@ def calc_distance(index1, index2, MC):
 
     return np.sqrt(delta_x**2 + delta_y**2 + delta_z**2)
 
+"""
+returns the grid point indices at height level h
+
+"""
+
 def find_indices_at_height(h, indices, MC):
 
     nx = MC['nx']
     ny = MC['ny']
     
-    hit = np.logical_and(h*nx*ny < indices, indices <= (h+1)*nx*ny)
+    hit = np.logical_and(h*nx*ny <= indices, indices < (h+1)*nx*ny)
     return indices[hit]
+"""
+returns ids for clouds at height level h
+
+"""
+def find_cloud_ids_at_height(h, clusters, MC):
+    ids = []
+    for id, cluster in clusters.iteritems():
+        indices_at_h = find_indices_at_height(h, cluster.condensed_mask(), MC)
+        if len(indices_at_h):
+            ids.append(id)
+    return ids
+    
+
+"""
+returns a dictionary indexed by cloud id with depth arrays at height level h
+
+inputs: h - height level 
+        clusters - dictionary of Cluster objects indexed by id
+        MC - dictionary with model configuration
+
+"""
+def label_cloud_depths_at_height(h, clusters, MC):
+    cloud_depths = {}
+    ids = find_cloud_ids_at_height(h, clusters, MC)
+    for id, cluster in clusters.iteritems():
+        if id in ids:
+              indices_at_h = find_indices_at_height(h, cluster.condensed_mask(), MC)
+              cloud_halo = find_halo(indices_at_h, MC)
+              cloud_halo_at_h = find_indices_at_height(h, cloud_halo, MC)
+              depths = label_depth(indices_at_h, cloud_halo_at_h, MC)
+              cloud_depths[id] = depths
+              
+    return cloud_depths
 
 def expand_indexes_horizontal(indexes, MC):
     # Expand a given set of x-y grid indexes to include the nearest
@@ -177,5 +216,11 @@ def expand_indexes_horizontal(indexes, MC):
     expanded_index = np.unique(expanded_index)
     
     return expanded_index
+
+
+
+
+
+
 
 
