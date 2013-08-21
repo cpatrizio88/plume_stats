@@ -29,6 +29,7 @@ def plot_cloud_edges(filename, filtered_ids, MC,  h):
             halo_at_h = index_to_xy(halo_at_h, MC)
             cloud_edges_at_h[id] = halo_at_h
 
+    num_clouds = len(cloud_ids_at_h)
     colormap = cm.Paired(np.linspace(0, 1, num_clouds))
     colors = iter(colormap)
 
