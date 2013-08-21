@@ -2,6 +2,8 @@ import numpy as np
 import site
 site.addsitedir('/home/cpatrizi/repos/cloudtracker')
 import cloudtracker
+import cPickle
+import glob
 from cloudtracker.utility_functions import index_to_zyx, zyx_to_index, find_halo, expand_indexes
 
 
@@ -103,24 +105,25 @@ def label_cloud_depths(clusters, ids, MC):
               
 
 """
-  returns all grid indices that are not condensed points
-  and all grid indices that are condensed points as numpy arrays
-
+  returns grid point indices for all clouds with ids in cloud_ids
+  and the compliment of these grid point indices (the environment)
+  
 """
 
-def find_all_indices(clusters, MC):
+def find_cloud_indices(clusters, cloud_ids, MC):
     
     cloud_indices = np.array([])
 
     grid = np.arange(MC['nx']*MC['ny']*MC['nz'])
 
     for id, cluster in clusters.iteritems():
-        tmp = cluster.condensed_mask()
-        cloud_indices = np.concatenate([cloud_indices, tmp])
+        if id in cloud_ids:
+            tmp = cluster.condensed_mask()
+            cloud_indices = np.concatenate([cloud_indices, tmp])
 
     env_indices = np.setdiff1d(grid, cloud_indices, assume_unique=True)
 
-    return env_indices, cloud_indices
+    return cloud_indices, env_indices
 
 #calculates the distance between index1 and index2
 #(note: index2 or index1 may be an array of indices, but not both)
@@ -154,6 +157,7 @@ def find_indices_at_height(h, indices, MC):
     
     hit = np.logical_and(h*nx*ny <= indices, indices < (h+1)*nx*ny)
     return indices[hit]
+
 """
 returns ids for clouds at height level h
 
@@ -172,12 +176,12 @@ returns a dictionary indexed by cloud id with depth arrays at height level h
 
 inputs: h - height level 
         clusters - dictionary of Cluster objects indexed by id
+        ids - ids of clouds to label depth 
         MC - dictionary with model configuration
 
 """
-def label_cloud_depths_at_height(h, clusters, MC):
+def label_cloud_depths_at_height(h, clusters, ids, MC):
     cloud_depths = {}
-    ids = find_cloud_ids_at_height(h, clusters, MC)
     for id, cluster in clusters.iteritems():
         if id in ids:
               indices_at_h = find_indices_at_height(h, cluster.condensed_mask(), MC)
@@ -216,6 +220,70 @@ def expand_indexes_horizontal(indexes, MC):
     expanded_index = np.unique(expanded_index)
     
     return expanded_index
+
+"""
+
+returns ids of clusters that have lifetimes greater than one
+model output time step, and are greater than some size threshold
+
+
+inputs: filenames - list of filenames of .pkl files from cloudtracker output
+                   (each .pkl file contains a dictionary of Cluster objects at some time step)
+
+outputs: filtered_ids - a list of cluster ids that pass above criteria
+         maxid - the maximum cluster id
+         MC - dictionary of model configuration
+                   
+"""
+
+def filter_clusters(filenames):
+    
+    filenames.sort()
+    cluster = cPickle.load(open(filenames[0], 'rb'))[0]
+    MC = cluster.MC
+    #get model parameters
+    dt = MC['dt']
+    nx = MC['nx'] #number of grid points in x, y, and z direction
+    ny = MC['ny']
+    nz = MC['nz']
+    nt = MC['nt'] #number of time steps
+    dx = MC['dx'] #grid spacing (m)
+    dy = MC['dy']
+    dz = MC['dz']
+    #a list of dictionaries; each dictionary contains the set of all
+    #cluster objects at a given time
+    clusters_list = []
+    maxid = 0
+
+    for fname in filenames:
+        clusters = cPickle.load(open(fname, 'rb'))
+        clusters_list.append(clusters)
+        ids = clusters.keys()
+        maxid_tmp = max(ids)
+        if maxid_tmp > maxid:
+            maxid = maxid_tmp
+
+    #lifetimes of clusters
+    lifetimes = np.zeros(maxid+1)
+    #volumes of clusters (# of grid cells that the plume occupies)
+    volumes = np.zeros(maxid+1)
+    volume_threshold = 1
+
+    #clusters is a dictionary of Cluster objects
+    #(see cloud_objects.py in cloudtracker)
+    for clusters in clusters_list:
+        #iterate over each cluster at the current time
+        #increment the lifetime and volume of the cluster 
+        #and find the area of xy cloud projection
+        for id, cluster in clusters.iteritems():
+            lifetimes[id] = lifetimes[id] + dt
+            volumes[id] = len(cluster.plume_mask())
+
+    #filter out noise (i.e. clusters that exist only for a single time step)
+    filtered_ids = np.where(np.logical_and(lifetimes > dt, volumes > volume_threshold))[0]
+    
+    return filtered_ids, maxid, MC
+
 
 
 
