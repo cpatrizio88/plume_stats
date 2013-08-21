@@ -1,29 +1,27 @@
-from mpl_toolkits.mplot3d import Axes3D
 from plume_stats import plume_stats
-from cloud_stats import cloud_stats
+from cloud_stats import cloud_stats, compute_distances_to_cloud_edges
 import glob
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-from util_functions import find_indices_at_height
+from util_functions import find_indices_at_height, filter_clusters
+from plot_clusters import plot_cloud_edge_distance, plot_cloud_edges
 from netCDF4 import Dataset
 import cPickle
 import site
 site.addsitedir('/home/cpatrizi/repos/cloudtracker')
 import cloudtracker
 
-#------plume output-------
+clusters_list = []
 
 filenames = glob.glob('/home/cpatrizi/repos/cloudtracker/pkl/cluster_objects*.pkl')
 filenames.sort()
-cluster = cPickle.load(open(filenames[0], 'rb'))[0]
-#model configuration (grid spacing, domain size, etc)
-MC = cluster.MC
+
+filtered_ids, maxid, MC = filter_clusters(filenames)
+
+#------plume output-------
 
 lifetimes, areas, has_condensed = plume_stats(filenames)
-
-
-#dry_plume_ids = np.where(~has_condensed)
 
 print "number of plumes: ",  len(lifetimes)
 print 'number of dry plumes: ', len(lifetimes[~has_condensed])
@@ -61,13 +59,19 @@ plt.ylabel('number of dry plumes')
 
 #------cloud output-------
 t = 90
-h = 840/MC['dz']
-lifetimes, areas, distances, distances_at_h, cloud_ids_at_h = cloud_stats(filenames, t, h)
+h = 720/MC['dz']
+
+lifetimes, areas = cloud_stats(filenames, filtered_ids, maxid, MC)
+
+distances = compute_distances_to_cloud_edges(filenames[t], filtered_ids, MC)
+distances_at_h, cloud_ids_at_h = compute_distances_to_cloud_edges(filenames[t], filtered_ids, MC, h)
 
 print "number of clouds: ",  len(lifetimes)
 
+print "number of clouds at height {0} m: {1}".format(h*MC['dz'], len(cloud_ids_at_h))
+
 mean_lt = np.mean(lifetimes)
-print "cloud mean lifetime (min): %4.3f " % (mean_lt)
+print "cloud mean lifetime (min): %4.3f " % (mean_lt/60.)
 
 l = np.sqrt(areas)
 print "cloud mean horizontal length scale (m): %4.3f" % np.mean(l)
@@ -107,11 +111,11 @@ if len(distances_at_h):
     plt.ylabel('total mixing ratio (g/kg)')
     plt.title('using cloudtracker output at timestep {0}, height {1} m.'.format(t, h*MC['dz']))
 else:
-    print 'no clouds at height {0} m.'.format(h*MC['dz'])
+    print 'can''t plot histogram, no clouds at height {0} m.'.format(h*MC['dz'])
 
 bins = np.arange(31)
 plt.figure()
-plt.hist(lifetimes, bins)
+plt.hist(lifetimes/60., bins)
 plt.xlabel('lifetime (min)')
 plt.ylabel('number of clouds')
 bins = np.linspace(0,500,50)
@@ -119,4 +123,8 @@ plt.figure()
 plt.hist(l, bins)
 plt.xlabel(r'projected area$^{1/2}$ (m)')
 plt.ylabel('number of clouds')
+plt.figure()
+plot_cloud_edge_distance(filenames[t], filtered_ids, MC, h)
+plot_cloud_edges(filenames[t], filtered_ids, MC, h)
+plt.title('distance to cloud edges at height {0} m, timestep {1}'.format(h*MC['dz'], t))
 plt.show()
