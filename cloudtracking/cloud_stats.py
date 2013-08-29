@@ -45,7 +45,7 @@ def cloud_stats(filenames, filtered_ids, maxid, MC):
                 areas[id] = areas[id] + len(proj)
 
     cloud_ids = np.where(cloud_lifetimes > 0)[0]
-    cloud_ids = np.intersect1d(cloud_ids, filtered_ids)
+    #cloud_ids = np.intersect1d(cloud_ids, filtered_ids)
 
     cloud_lifetimes = cloud_lifetimes[cloud_ids]
     areas = areas[cloud_ids]
@@ -111,7 +111,6 @@ def compute_distances_to_cloud_edges(filename, filtered_ids, MC, h=None):
                     distances_at_h[indices] = (n+.5)*MC['dx']
 
         valid_indices = np.where(np.isfinite(distances_at_h))[0]
-        #print valid_indices
         distances_at_h = distances_at_h[valid_indices]
 
         return distances_at_h, cloud_ids_at_h
