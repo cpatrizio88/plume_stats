@@ -1,5 +1,3 @@
-from util_functions import find_cloud_ids_at_height, find_indices_at_height, index_to_xy, filter_clusters
-from cloud_stats import compute_distances_to_cloud_edges
 import cPickle
 import glob
 import matplotlib.pyplot as plt
@@ -8,17 +6,22 @@ import numpy as np
 import site
 site.addsitedir('/home/cpatrizi/repos/cloudtracker/')
 from cloudtracker.utility_functions import find_halo
+from cloud_stats import compute_distances_to_cloud_edges
+from util_functions import find_cloud_ids_at_height, find_indices_at_height, \
+                           index_to_xy, filter_clusters, index_to_xz, find_plume_ids_at_y, \
+                           find_indices_at_y
 
 
 """
-plots cloud edges at height level h
+plots a horizontal slice of cloud edges at height level h
 
 """
 
-def plot_cloud_edges(filename, filtered_ids, MC,  h):
+def plot_cloud_edges_z(filename, filtered_ids, MC,  h):
 
     clusters = cPickle.load(open(filename, 'rb'))
     cloud_edges_at_h = {}
+    
     cloud_ids_at_h = find_cloud_ids_at_height(h, clusters, MC)
     cloud_ids_at_h = np.intersect1d(cloud_ids_at_h, filtered_ids)
 
@@ -36,7 +39,95 @@ def plot_cloud_edges(filename, filtered_ids, MC,  h):
     for id, cloud_edge in cloud_edges_at_h.iteritems():
         x = cloud_edge[0, ...]*MC['dx']
         y = cloud_edge[1, ...]*MC['dy']
-        plt.scatter(x, y, color = next(colors))
+        plt.scatter(x, y, color = next(colors), s = 5*np.ones(x.shape))
+
+
+"""
+
+plots x-z projections of plumes (dry region only)
+
+"""
+
+def plot_plumes_xz(filename, filtered_ids, MC):
+
+    clusters = cPickle.load(open(filename, 'rb'))
+    plume_projs = {}
+
+    for id, cluster in clusters.iteritems():
+        if id in filtered_ids:
+            #halo = find_halo(cluster.plume_mask(), MC)
+            dry_plume = np.setdiff1d(cluster.plume_mask(), cluster.condensed_mask())
+            if len(dry_plume):
+               plume_proj = index_to_xz(dry_plume, MC)
+               plume_projs[id] = plume_proj
+ 
+    num_plumes = len(plume_projs.keys())
+
+    colormap = cm.Paired(np.linspace(0, 1, num_plumes))
+    colors = iter(colormap)
+
+    for id, plume_proj in plume_projs.iteritems():
+        x = plume_proj[0, ...]*MC['dx']
+        z = plume_proj[1, ...]*MC['dz']
+        plt.scatter(x, z, color = next(colors), s = 8*np.ones(x.shape))
+        #plt.pcolormesh(plume_edges, color = next(colors))
+
+"""
+plots x-y projections of plumes (dry region only)
+"""
+def plot_plumes_xy(filename, filtered_ids, MC):
+
+    clusters = cPickle.load(open(filename, 'rb'))
+    plume_projs = {}
+
+    for id, cluster in clusters.iteritems():
+        if id in filtered_ids:
+            #halo = find_halo(cluster.plume_mask(), MC)
+            dry_plume = np.setdiff1d(cluster.plume_mask(), cluster.condensed_mask())
+            if len(dry_plume):
+               plume_proj = index_to_xy(dry_plume, MC)
+               plume_projs[id] = plume_proj
+ 
+    num_plumes = len(plume_projs.keys())
+
+    colormap = cm.Paired(np.linspace(0, 1, num_plumes))
+    colors = iter(colormap)
+
+    for id, plume_proj in plume_projs.iteritems():
+        x = plume_proj[0, ...]*MC['dx']
+        y = plume_proj[1, ...]*MC['dy']
+        plt.scatter(x, y, color = next(colors), s = 8*np.ones(x.shape))
+    
+"""
+plots plumes (dry region only) at North-South grid point y
+"""
+
+def plot_plumes_y(filename, filtered_ids, MC, y):
+
+    clusters = cPickle.load(open(filename, 'rb'))
+    plumes = {}
+
+    plume_ids_at_y = find_plume_ids_at_y(y, clusters, MC)
+    plume_ids_at_y = np.intersect1d(filtered_ids, plume_ids_at_y)
+
+    for id, cluster in clusters.iteritems():
+        if id in plume_ids_at_y:
+            dry_plume = np.setdiff1d(cluster.plume_mask(), cluster.condensed_mask())
+            dry_plume = find_indices_at_y(y, dry_plume, MC)
+            dry_plume = index_to_xz(dry_plume, MC)
+            plumes[id] = dry_plume
+
+    num_plumes = len(plumes.keys())
+
+    colormap = cm.Paired(np.linspace(0, 1, num_plumes))
+    colors = iter(colormap)
+
+    for id, plume in plumes.iteritems():
+        x = plume[0, ...]*MC['dx']
+        z = plume[1, ...]*MC['dz']
+        plt.scatter(x, z, color = next(colors), s = 8*np.ones(x.shape))
+
+
 
 
 """
