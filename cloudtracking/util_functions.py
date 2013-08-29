@@ -11,8 +11,7 @@ from cloudtracker.utility_functions import index_to_zyx, zyx_to_index, find_halo
 
 """
  function to project indices onto the x-y plane
- note: numpy arrays are in row-major order by default
- 
+
  inputs: indices - indices to project
          ny, nx - grid points in y, and x directions respectively
                       (i.e. the horizontal dimensions of the array)
@@ -23,17 +22,32 @@ from cloudtracker.utility_functions import index_to_zyx, zyx_to_index, find_halo
 """
 
 def index_to_xy(index, MC):
-    ny = MC['ny']
-    nx = MC['nx']
-    index = index % (ny*nx)
-    y = index / nx
-    x = index % nx
+    #ny = MC['ny']
+    #nx = MC['nx']
+    #index = index % (ny*nx)
+    #y = index / nx
+    #x = index % nx
+    #tmp = zip(x, y)
+    #return np.unique(tmp).T
+    points = index_to_zyx(index, MC)
+    z = points[0,:]
+    y = points[1,:]
+    x = points[2,:]
     tmp = zip(x, y)
     return np.unique(tmp).T
 
 def xy_to_index(x, y, MC):
    nx = MC['nx']
    return nx*y + x
+
+def index_to_xz(index, MC):
+    points = index_to_zyx(index, MC)
+    z = points[0,:]
+    y = points[1,:]
+    x = points[2,:]
+    tmp = zip(x, z)
+    return np.unique(tmp).T
+    
 
 """
 
@@ -83,7 +97,7 @@ def label_depth(indices, halo, MC):
  returns a dictionary (indexed by cloud id) containing cloud depth arrays
  (as described in label_depth) 
 
-inputs: clusters - a dictionary of Cluster objects at a single time step (indexed by cloud id)
+inputs:  clusters - a dictionary of Cluster objects at a single time step (indexed by cloud id)
          cloud_ids - a list of ids for which cloud depth arrays will be computed
                      must be a subset of the id's found in clusters
          MC - dictionary containing grid parameters (as in model_config.cfg)
@@ -151,15 +165,42 @@ returns the grid point indices at height level h
 """
 
 def find_indices_at_height(h, indices, MC):
+    points = index_to_zyx(indices, MC)
+    zcoords = points[0,:]
+    ycoords = points[1,:]
+    xcoords = points[2,:]
+    hit = np.where(zcoords == h)
+    xcoords = xcoords[hit]
+    ycoords = ycoords[hit]
+    zcoords = zcoords[hit]
 
-    nx = MC['nx']
-    ny = MC['ny']
+    return zyx_to_index(zcoords, ycoords, xcoords, MC)
+
+
+    #nx = MC['nx']
+    #ny = MC['ny']
     
-    hit = np.logical_and(h*nx*ny <= indices, indices < (h+1)*nx*ny)
-    return indices[hit]
+    #hit = np.logical_and(h*nx*ny <= indices, indices < (h+1)*nx*ny)
+    #return indices[hit]
+
+def find_indices_at_y(y, indices, MC):
+    points = index_to_zyx(indices, MC)
+    zcoords = points[0,:]
+    ycoords = points[1,:]
+    xcoords = points[2,:]
+    hit = np.where(ycoords == y)
+    xcoords = xcoords[hit]
+    ycoords = ycoords[hit]
+    zcoords = zcoords[hit]
+
+    return zyx_to_index(zcoords, ycoords, xcoords, MC)
 
 """
 returns ids for clouds at height level h
+
+inputs: h - height level
+        clusters - dictionary of Cluster objects at some time 
+        MC - dictionary with model configuration
 
 """
 def find_cloud_ids_at_height(h, clusters, MC):
@@ -169,6 +210,41 @@ def find_cloud_ids_at_height(h, clusters, MC):
         if len(indices_at_h):
             ids.append(id)
     return ids
+
+"""
+returns ids for any plumes (that are not entirely condensed) at North-South grid point y
+"""
+def find_plume_ids_at_y(y, clusters, MC):
+    ids = []
+    for id, cluster in clusters.iteritems():
+        plume = cluster.plume_mask()
+        condensed = cluster.condensed_mask()
+        dry_plume = np.setdiff1d(plume, condensed)
+        indices_at_y = find_indices_at_y(y, dry_plume, MC)
+        if len(indices_at_y):
+            ids.append(id)
+    return ids
+
+"""
+returns ids for plumes at timestep t
+
+inputs: filenames - list of .pkl files, each containing a dictionary of Cluster objects
+                    (from cloudtracker output)
+        t - timestep
+        filtered_ids - list of ids after filtering
+
+output: list of plume ids (any plume ids that are not all condensed points)
+"""
+def find_plume_ids_at_t(t, filenames, filtered_ids):
+    filenames.sort()
+    clusters = cPickle.load(open(filenames[t], 'rb'))
+    plume_ids = []
+    for id, cluster in clusters.iteritems():
+        if id in filtered_ids:
+           dry_plume = np.setdiff1d(cluster.plume_mask(), cluster.condensed_mask())
+           if len(dry_plume):
+              plume_ids.append(id)
+    return plume_ids
     
 
 """
@@ -220,6 +296,7 @@ def expand_indexes_horizontal(indexes, MC):
     expanded_index = np.unique(expanded_index)
     
     return expanded_index
+
 
 """
 
