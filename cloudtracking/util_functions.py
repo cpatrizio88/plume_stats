@@ -20,7 +20,6 @@ from cloudtracker.utility_functions import index_to_zyx, zyx_to_index, find_halo
          (first row: x coordinate, second row: y coordinate)
 
 """
-
 def index_to_xy(index, MC):
     #ny = MC['ny']
     #nx = MC['nx']
@@ -65,7 +64,6 @@ output: a list of numpy arrays with grid indices at each depth level (grid indic
         (starts at grid indices closest to the cloud boundary) 
         
 """
-
 def label_depth(indices, halo, MC):
 
    mask_indexes = indices[:]
@@ -105,7 +103,6 @@ inputs:  clusters - a dictionary of Cluster objects at a single time step (index
  outputs: see above
 
 """
-
 def label_cloud_depths(clusters, ids, MC):
     cloud_depths = {}
     #env_indices, cloud_indices = find_all_indices(clusters, MC)
@@ -123,7 +120,6 @@ def label_cloud_depths(clusters, ids, MC):
   and the compliment of these grid point indices (the environment)
   
 """
-
 def find_cloud_indices(clusters, cloud_ids, MC):
     
     cloud_indices = np.array([])
@@ -163,8 +159,7 @@ def calc_distance(index1, index2, MC):
 returns the grid point indices at height level h
 
 """
-
-def find_indices_at_height(h, indices, MC):
+def find_indices_at_z(h, indices, MC):
     points = index_to_zyx(indices, MC)
     zcoords = points[0,:]
     ycoords = points[1,:]
@@ -203,16 +198,20 @@ inputs: h - height level
         MC - dictionary with model configuration
 
 """
-def find_cloud_ids_at_height(h, clusters, MC):
+def find_cloud_ids_at_z(h, clusters, MC):
     ids = []
     for id, cluster in clusters.iteritems():
-        indices_at_h = find_indices_at_height(h, cluster.condensed_mask(), MC)
+        indices_at_h = find_indices_at_z(h, cluster.condensed_mask(), MC)
         if len(indices_at_h):
             ids.append(id)
     return ids
 
 """
-returns ids for any plumes (that are not entirely condensed) at North-South grid point y
+returns ids for any plumes (that are not entirely clouds) at horizontal level y
+
+note: in cloudtracker output, the condensed region is always a subset of the plume region 
+      this function returns plume ids for plumes that have plume region != condensed region
+      (i.e. plumes that still have uncondensed points)
 """
 def find_plume_ids_at_y(y, clusters, MC):
     ids = []
@@ -225,15 +224,32 @@ def find_plume_ids_at_y(y, clusters, MC):
             ids.append(id)
     return ids
 
+def find_plume_ids_at_z(h, clusters, MC):
+    ids = []
+    for id, cluster in clusters.iteritems():
+        plume = cluster.plume_mask()
+        condensed = cluster.condensed_mask()
+        dry_plume = np.setdiff1d(plume, condensed)
+        indices_at_z = find_indices_at_z(h, dry_plume, MC)
+        if len(indices_at_z):
+            ids.append(id)
+        
+    return ids
+
+
 """
-returns ids for plumes at timestep t
+returns ids for plumes (that are not entirely clouds) at timestep t
 
 inputs: filenames - list of .pkl files, each containing a dictionary of Cluster objects
                     (from cloudtracker output)
         t - timestep
         filtered_ids - list of ids after filtering
 
-output: list of plume ids (any plume ids that are not all condensed points)
+output: list of plume ids
+
+note: in cloudtracker output, the condensed region (cloud) is always a subset of the plume region 
+      this function returns plume ids for plumes that have plume region != condensed region
+      (i.e. plumes that still have uncondensed points)
 """
 def find_plume_ids_at_t(t, filenames, filtered_ids):
     filenames.sort()
@@ -256,17 +272,18 @@ inputs: h - height level
         MC - dictionary with model configuration
 
 """
-def label_cloud_depths_at_height(h, clusters, ids, MC):
+def label_cloud_depths_at_z(h, clusters, ids, MC):
     cloud_depths = {}
     for id, cluster in clusters.iteritems():
         if id in ids:
-              indices_at_h = find_indices_at_height(h, cluster.condensed_mask(), MC)
+              indices_at_h = find_indices_at_z(h, cluster.condensed_mask(), MC)
               cloud_halo = find_halo(indices_at_h, MC)
-              cloud_halo_at_h = find_indices_at_height(h, cloud_halo, MC)
+              cloud_halo_at_h = find_indices_at_z(h, cloud_halo, MC)
               depths = label_depth(indices_at_h, cloud_halo_at_h, MC)
               cloud_depths[id] = depths
-              
+
     return cloud_depths
+
 
 def expand_indexes_horizontal(indexes, MC):
     # Expand a given set of x-y grid indexes to include the nearest
@@ -312,7 +329,6 @@ outputs: filtered_ids - a list of cluster ids that pass above criteria
          MC - dictionary of model configuration
                    
 """
-
 def filter_clusters(filenames):
     
     filenames.sort()
@@ -358,6 +374,15 @@ def filter_clusters(filenames):
 
     #filter out noise (i.e. clusters that exist only for a single time step)
     filtered_ids = np.where(np.logical_and(lifetimes > dt, volumes > volume_threshold))[0]
+
+    #also exclude all clusters that exist at the initial model output time step
+    #(since there is no history for those clusters)
+    #and similarly, exlude all clusters that exist at the final model output time step
+    ids_init = clusters_list[0].keys()
+    ids_final = clusters_list[-1].keys()
+
+    filtered_ids = np.setdiff1d(filtered_ids, ids_init)
+    filtered_ids = np.setdiff1d(filtered_ids, ids_final)
     
     return filtered_ids, maxid, MC
 
