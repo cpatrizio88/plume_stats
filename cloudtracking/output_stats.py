@@ -1,11 +1,10 @@
-from plume_stats import plume_stats
-from cloud_stats import cloud_stats, compute_distances_to_cloud_edges
+from plume_stats import compute_plume_vars
+from cloud_stats import compute_cloud_vars, compute_distances_to_cloud_edges
 import glob
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-from util_functions import find_indices_at_height, filter_clusters, find_plume_ids_at_t
-from plot_clusters import plot_cloud_edge_distance, plot_cloud_edges_z, plot_plumes_xz, plot_plumes_y, plot_plumes_xy
+from util_functions import find_indices_at_z, filter_clusters, find_plume_ids_at_t
 from netCDF4 import Dataset
 import cPickle
 import site
@@ -19,33 +18,35 @@ filenames.sort()
 
 filtered_ids, maxid, MC = filter_clusters(filenames)
 
-t = 90
+t = 85
 h = 720/MC['dz']
 y = 45
 
 #------plume output-------
 
-lifetimes, areas, has_condensed = plume_stats(filenames, filtered_ids, maxid, MC)
+lifetimes, areas, condensed_time, condensed_height  = compute_plume_vars(filenames, filtered_ids, maxid, MC)
 
-lifetimes_dry = lifetimes[~has_condensed]/60.
-lifetimes_moist = lifetimes[has_condensed]/60.
+ismoist = np.isfinite(condensed_time)
 
-dry_plume_ids = find_plume_ids_at_t(t, filenames, filtered_ids)
+condensed_time = condensed_time[ismoist]
+condensed_height = condensed_height[ismoist]
+
+lifetimes_dry = lifetimes[~ismoist]/60.
+lifetimes_moist = lifetimes[ismoist]/60.
+
+#plume_ids = find_plume_ids_at_t(t, filenames, filtered_ids)
 
 print "number of plumes: ",  len(lifetimes)
 print 'number of dry plumes: ', len(lifetimes_dry)
-print 'number of plumes (w/ non-condensed points) at timestep {0}: {1}'.format(t, len(dry_plume_ids))
+#print 'number of plumes at timestep {0}: {1}'.format(t, len(plume_ids))
 print 'number of moist plumes: ', len(lifetimes_moist)
-
-
-
-print "moist plume mean lifetime (min): %4.3f " % (np.mean(lifetimes_moist))
 print "dry plume mean lifetime (min): %4.3f " % (np.mean(lifetimes_dry))
-
-ml = np.sqrt(areas[has_condensed])
-dl = np.sqrt(areas[~has_condensed])
-print "moist plume mean horizontal length scale (m): %4.3f" % (np.mean(ml))
+dl = np.sqrt(areas[~ismoist])
 print "dry plume mean horizontal length scale (m): %4.3f" % (np.mean(dl))
+ml = np.sqrt(areas[ismoist])
+print "moist plume mean lifetime (min): %4.3f " % (np.mean(lifetimes_moist))
+print "moist plume mean horizontal length scale (m): %4.3f" % (np.mean(ml))
+print "mean LCL: {0:3.2f} m".format(np.mean(condensed_height)*MC['dz'])
 
 bins = np.arange(31)
 plt.hist(lifetimes_dry, bins)
@@ -66,28 +67,14 @@ bins = np.linspace(0,500,50)
 plt.hist(dl, bins)
 plt.xlabel(r'projected area$^{1/2}$ (m)')
 plt.ylabel('number of dry plumes')
-plt.figure()
-plot_plumes_xz(filenames[t], filtered_ids, MC)
-plt.ylim((0,1500))
-plt.xlim((0, MC['nx']*MC['dx']))
-plt.title('x-z projections of plumes (dry region only) at timestep {0}'.format(t))
-plt.figure()
-plot_plumes_y(filenames[t], filtered_ids, MC, y)
-plt.ylim((0,1500))
-plt.xlim((0, MC['nx']*MC['dx']))
-plt.figure()
-plot_plumes_xy(filenames[t], filtered_ids, MC)
-plt.title('x-y projections of plumes (dry region only) at timestep {0}'.format(t))
-
-
-
 
 #------cloud output-------
 
-lifetimes, areas = cloud_stats(filenames, filtered_ids, maxid, MC)
+lifetimes, areas = compute_cloud_vars(filenames, filtered_ids, maxid, MC)
 
 distances = compute_distances_to_cloud_edges(filenames[t], filtered_ids, MC)
 distances_at_h, cloud_ids_at_h = compute_distances_to_cloud_edges(filenames[t], filtered_ids, MC, h)
+
 
 print "number of clouds: ",  len(lifetimes)
 
@@ -108,7 +95,7 @@ qn = ncfile.variables['QN'][:]
 qt = (qn + qv).flatten()
 
 
-indices_at_h = find_indices_at_height(h, np.arange(len(distances)), MC)
+indices_at_h = find_indices_at_z(h, np.arange(len(distances)), MC)
 
 r1, r2 = min(distances), max(distances)
 q1, q2 = min(qt), max(qt)
@@ -131,9 +118,6 @@ if len(distances_at_h):
     plt.xlabel('horizontal distance from cloud edge (m)')
     plt.ylabel('total mixing ratio (g/kg)')
     plt.title('using cloudtracker output at timestep {0}, height {1} m.'.format(t, h*MC['dz']))
-else:
-    print 'can''t plot histogram, no clouds at height {0} m.'.format(h*MC['dz'])
-
 bins = np.arange(31)
 plt.figure()
 plt.hist(lifetimes/60., bins)
@@ -144,8 +128,4 @@ plt.figure()
 plt.hist(l, bins)
 plt.xlabel(r'projected area$^{1/2}$ (m)')
 plt.ylabel('number of clouds')
-plt.figure()
-plot_cloud_edge_distance(filenames[t], filtered_ids, MC, h)
-plot_cloud_edges_z(filenames[t], filtered_ids, MC, h)
-plt.title('distance to cloud edges at height {0} m, timestep {1}'.format(h*MC['dz'], t))
 plt.show()
