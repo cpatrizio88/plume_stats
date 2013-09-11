@@ -1,3 +1,4 @@
+from __future__ import division
 import numpy as np
 import site
 site.addsitedir('/home/cpatrizi/repos/cloudtracker')
@@ -20,54 +21,65 @@ from util_functions import index_to_xy, filter_clusters
            note: all plumes that exist for only a single model output time step are ignored 
 """
 
-def plume_stats(filenames, filtered_ids, maxid, MC):
+def compute_plume_vars(filenames, filtered_ids, maxid, MC):
 
     filenames.sort()
 
     #lifetimes of clusters
     lifetimes = np.zeros(maxid+1)
-    #lifetimes of clusters before condensing
-    lifetimes_moist = np.zeros(maxid+1)
-    
+   
     #areas of xy projections of plumes (before condensed region forms)
     areas = np.zeros(maxid+1)
     #keep track of plumes that form condensed regions
     #initialize all plumes to False
-    has_condensed = np.zeros(maxid+1) < -1
-
-    
-    for fname in filenames:
+    #has_condensed = np.zeros(maxid+1) < -1
+    #track when plumes condense (i.e. the model output timestep when condensation occurs)
+    #a NAN entry signifies that the plume has not condensed
+    condensed_time = np.empty(maxid+1)
+    condensed_time[:] = np.NAN
+    #keep track of height of condensation
+    condensed_height = np.empty(maxid+1)
+    condensed_height[:] = np.NAN
+  
+    for t, fname in enumerate(filenames):
         clusters = cPickle.load(open(fname, 'rb'))
         #iterate over each cluster at the current time
         #increment the lifetime of the plume
         #and find the area of plume x-y projection
         for id, cluster in clusters.iteritems():
            if id in filtered_ids:
-                #only increment lifetime of plumes if there are dry plume
-                #points (i.e. the plume is has not completely formed into a cloud)
-                if has_condensed[id]:
-                    plume = cluster.plume_mask()
-                    #the condensed region is always a subset of the plume 
-                    condensed = cluster.condensed_mask()
-                    dry_plume = np.setdiff1d(plume, condensed)
-                    if len(dry_plume) > 0:
-                        lifetimes[id] = lifetimes[id] + MC['dt']
-                        proj = index_to_xy(dry_plume, MC).T
-                        areas[id] = areas[id] + len(proj)
-                else:
-                    lifetimes[id] = lifetimes[id] + MC['dt']
-                    proj = index_to_xy(cluster.plume_mask(), MC).T
-                    areas[id] = areas[id] + len(proj)
-           #label plumes that have just condensed, find height and time of condensation
-           if cluster.has_condensed() and not has_condensed[id]:
-               has_condensed[id] = True
-
+               #find height and time (timestep) of condensation for plumes that have just condensed
+               if (cluster.has_condensed() and np.isnan(condensed_time[id])):
+                   condensed_time[id] = t
+                   cloud = cluster.condensed_mask()
+                   #find the minimum height (as a grid coordinate) of condensation
+                   min_height = min(cloud)
+                   min_height = min_height/(MC['nx']*MC['ny'])
+                   min_height = int(min_height)
+                   condensed_height[id] = min_height
+               #find dry plume region
+               #(note that the condensed region is always a subset of the plume in cloudtracker output)
+               plume = cluster.plume_mask()
+               condensed = cluster.condensed_mask()
+               dry_plume = np.setdiff1d(plume, condensed)
+               #only increment lifetime of plumes if there are dry plume
+               #points (i.e. the plume has not completely formed into a cloud)
+               if len(dry_plume) > 0:
+                   lifetimes[id] = lifetimes[id] + MC['dt']
+                   proj = index_to_xy(dry_plume, MC).T
+                   areas[id] = areas[id] + len(proj)
+            
     lifetimes = lifetimes[filtered_ids]
     areas = areas[filtered_ids]
     areas = areas*(MC['dx']*MC['dy'])/(lifetimes/MC['dt'])
-    has_condensed = has_condensed[filtered_ids]
+    #has_condensed = has_condensed[filtered_ids]
+    condensed_time = condensed_time[filtered_ids]
+    condensed_height = condensed_height[filtered_ids]
 
-    return lifetimes, areas, has_condensed
+    return lifetimes, areas, condensed_time, condensed_height
+
+
+
 
    
 
