@@ -6,9 +6,9 @@ import cloudtracker
 import cPickle
 import glob
 from cloudtracker.utility_functions import find_halo
-from util_functions import index_to_xy, label_cloud_depths, find_cloud_indices, label_depth, \
-                           find_cloud_ids_at_z, find_indices_at_z, \
-                           label_cloud_depths_at_z, filter_clusters
+from util_functions import index_to_xy, label_depths, find_cloud_indices, \
+                           label_depth, find_cloud_ids_at_z, find_indices_at_z, \
+                           label_depths_at_z, filter_clusters
 
 
 """
@@ -72,7 +72,7 @@ def compute_distances_to_cloud_edges(filename, filtered_ids, MC, h=None):
 
     clusters = cPickle.load(open(filename, 'rb'))
     
-    cloud_depths = label_cloud_depths(clusters, filtered_ids, MC)
+    cloud_depths = label_depths(clusters, filtered_ids, MC, 'cloud')
     cloud_indices, env_indices = find_cloud_indices(clusters, filtered_ids, MC)
     env_halo = find_halo(env_indices, MC)
     env_depth = label_depth(env_indices, env_halo, MC)
@@ -93,7 +93,7 @@ def compute_distances_to_cloud_edges(filename, filtered_ids, MC, h=None):
         cloud_ids_at_h = np.intersect1d(filtered_ids, cloud_ids_at_h)
         #if there are clouds at height h, compute distances to cloud edges
         #if len(cloud_ids_at_h):
-        cloud_depths_at_h = label_cloud_depths_at_z(h, clusters, cloud_ids_at_h, MC)
+        cloud_depths_at_h = label_depths_at_z(h, clusters, cloud_ids_at_h, MC, 'cloud')
         env_indices_at_h = find_indices_at_z(h, env_indices, MC)
         env_halo_at_h = find_indices_at_z(h, env_halo, MC)
         env_depth_at_h = label_depth(env_indices_at_h, env_halo_at_h, MC)
