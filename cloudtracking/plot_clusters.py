@@ -7,6 +7,7 @@ import site
 site.addsitedir('/home/cpatrizi/repos/cloudtracker/')
 from cloudtracker.utility_functions import find_halo
 from cloud_stats import compute_distances_to_cloud_edges
+from plume_stats import compute_distances_to_plume_edges
 from util_functions import find_cloud_ids_at_z, find_indices_at_z, \
                            index_to_xy, filter_clusters, index_to_xz, find_plume_ids_at_y, \
                            find_indices_at_y, find_plume_ids_at_z
@@ -218,8 +219,10 @@ def contour_cloud_edge_distance(filename, filtered_ids, MC, h):
     x, y = np.meshgrid(x, y)
 
     distances_at_h, cloud_ids_at_h = compute_distances_to_cloud_edges(filename, filtered_ids, MC, h)
+    print len(distances_at_h)
+    levs = np.linspace(np.min(distances_at_h), np.max(distances_at_h), 40)
 
-    levs = np.linspace(np.min(distances_at_h), np.max(distances_at_h), 20)
+    
     distances_at_h = distances_at_h.reshape(nx, ny)
     
     plt.contourf(x, y, distances_at_h, levels=levs)
@@ -228,5 +231,33 @@ def contour_cloud_edge_distance(filename, filtered_ids, MC, h):
     ax1 = plt.gca()
     ax1.set_xlim(0, MC['nx']*MC['dx'])
     ax1.set_ylim(0, MC['ny']*MC['dy'])
+
+"""
+contour distance to cloud edge (contour plot) at height level h
+
+"""
+def contour_plume_edge_distance(filename, filtered_ids, MC, h):
+
+    nx = MC['nx']
+    ny = MC['ny']
+
+    x = np.arange(nx)
+    x = x*MC['dx']
+    y = np.arange(ny)
+    y = y*MC['dy']
+    x, y = np.meshgrid(x, y)
+
+    distances_at_h, plume_ids_at_h = compute_distances_to_plume_edges(filename, filtered_ids, MC, h)\
+
+    levs = np.linspace(np.min(distances_at_h), np.max(distances_at_h), 40)
+    distances_at_h = distances_at_h.reshape(nx, ny)
+    
+    plt.contourf(x, y, distances_at_h, levels=levs)
+    plt.colorbar()
+
+    ax1 = plt.gca()
+    ax1.set_xlim(0, MC['nx']*MC['dx'])
+    ax1.set_ylim(0, MC['ny']*MC['dy'])
+
 
     
