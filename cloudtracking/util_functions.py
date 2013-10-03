@@ -99,20 +99,30 @@ inputs:  clusters - a dictionary of Cluster objects at a single time step (index
          cloud_ids - a list of ids for which cloud depth arrays will be computed
                      must be a subset of the id's found in clusters
          MC - dictionary containing grid parameters (as in model_config.cfg)
+         optional argument - specify 'cloud' to label depths of clouds
+                            otherwise plume depth will be labeled
 
  outputs: see above
 
 """
-def label_cloud_depths(clusters, ids, MC):
-    cloud_depths = {}
-    #env_indices, cloud_indices = find_all_indices(clusters, MC)
-    for id, cluster in clusters.iteritems():
-        if id in ids:
-              indices = cluster.condensed_mask()
-              cloud_halo = cluster.condensed_halo()
-              cloud_depths[id] = label_depth(indices, cloud_halo, MC)
-
-    return cloud_depths
+def label_depths(clusters, ids, MC, *args):
+    depths = {}
+    if (len(args) and args[0] == 'cloud'):
+        #label cloud depths for each cluster
+        for id, cluster in clusters.iteritems():
+            if id in ids:
+                  depths[id] = label_depth(cluster.condensed_mask(), cluster.condensed_halo(), MC)
+        return depths
+    else:
+       #label plume depths (for dry region only) for each cluster
+        for id, cluster in clusters.iteritems():
+            if id in ids:
+                  plume = cluster.plume_mask()
+                  condensed = cluster.condensed_mask()
+                  dry_plume = np.setdiff1d(plume, condensed)
+                  dry_plume_halo = find_halo(dry_plume, MC)
+                  depths[id] = label_depth(dry_plume, dry_plume_halo, MC)
+        return depths
               
 
 """
@@ -128,12 +138,34 @@ def find_cloud_indices(clusters, cloud_ids, MC):
 
     for id, cluster in clusters.iteritems():
         if id in cloud_ids:
-            tmp = cluster.condensed_mask()
-            cloud_indices = np.concatenate([cloud_indices, tmp])
+            indices = cluster.condensed_mask()
+            cloud_indices = np.concatenate([cloud_indices, indices])
 
     env_indices = np.setdiff1d(grid, cloud_indices, assume_unique=True)
 
     return cloud_indices, env_indices
+
+"""
+  returns grid point indices for all plumes (that have a dry region)
+  with ids in plume_ids, and the compliment of these grid point indices (the environment)
+
+"""
+
+def find_plume_indices(clusters, plume_ids, MC):
+    
+    plume_indices = np.array([])
+
+    grid = np.arange(MC['nx']*MC['ny']*MC['nz'])
+
+    for id, cluster in clusters.iteritems():
+        if id in plume_ids:
+            dry_plume = np.setdiff1d(cluster.plume_mask(), cluster.condensed_mask())
+            plume_indices = np.concatenate([plume_indices, dry_plume])
+
+    env_indices = np.setdiff1d(grid, plume_indices, assume_unique=True)
+
+    return plume_indices, env_indices
+
 
 #calculates the distance between index1 and index2
 #(note: index2 or index1 may be an array of indices, but not both)
@@ -270,19 +302,32 @@ inputs: h - height level
         clusters - dictionary of Cluster objects indexed by id
         ids - ids of clouds to label depth 
         MC - dictionary with model configuration
+        optional parameter - specify 'cloud' to label cloud depths
+                             otherwise plume depths will be labled
 
 """
-def label_cloud_depths_at_z(h, clusters, ids, MC):
-    cloud_depths = {}
-    for id, cluster in clusters.iteritems():
-        if id in ids:
-              indices_at_h = find_indices_at_z(h, cluster.condensed_mask(), MC)
-              cloud_halo = find_halo(indices_at_h, MC)
-              cloud_halo_at_h = find_indices_at_z(h, cloud_halo, MC)
-              depths = label_depth(indices_at_h, cloud_halo_at_h, MC)
-              cloud_depths[id] = depths
-
-    return cloud_depths
+def label_depths_at_z(h, clusters, ids, MC, *args):
+    depths = {}
+    if (len(args) and args[0] == 'cloud'):
+        for id, cluster in clusters.iteritems():
+            if id in ids:
+                  indices_at_h = find_indices_at_z(h, cluster.condensed_mask(), MC)
+                  cloud_halo = find_halo(indices_at_h, MC)
+                  cloud_halo_at_h = find_indices_at_z(h, cloud_halo, MC)
+                  depth = label_depth(indices_at_h, cloud_halo_at_h, MC)
+                  depths[id] = depth
+        return depths
+    else:
+         for id, cluster in clusters.iteritems():
+            if id in ids:
+                  dry_plume = np.setdiff1d(cluster.plume_mask(), cluster.condensed_mask())
+                  indices_at_h = find_indices_at_z(h, dry_plume, MC)
+                  plume_halo = find_halo(indices_at_h, MC)
+                  plume_halo_at_h = find_indices_at_z(h, plume_halo, MC)
+                  depth = label_depth(indices_at_h, plume_halo_at_h, MC)
+                  depths[id] = depth
+         return depths
+        
 
 
 def expand_indexes_horizontal(indexes, MC):
