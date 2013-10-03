@@ -6,7 +6,11 @@ import cloudtracker
 import cPickle
 import glob
 from netCDF4 import Dataset
-from util_functions import index_to_xy, filter_clusters
+from util_functions import index_to_xy, filter_clusters, label_depths, \
+                           find_plume_indices, label_depth, find_plume_ids_at_z, find_indices_at_z, \
+                           label_depths_at_z
+from cloudtracker.utility_functions import find_halo
+
 
 
 """
@@ -79,7 +83,65 @@ def compute_plume_vars(filenames, filtered_ids, maxid, MC):
     return lifetimes, areas, condensed_time, condensed_height
 
 
+"""
 
+ inputs: filename  -  name of .pkl file at some time step (contains a dictionary of Cluster objects)
+         filtered_ids - ids of clusters after filtering
+         MC - a dictionary with the model configuration
+         h (optional parameter) - height level
+        
+
+ output: an array of distances to plume (dry region only) edge (the index gives the grid point index)
+
+"""
+
+def compute_distances_to_plume_edges(filename, filtered_ids, MC, h=None):
+   
+
+    clusters = cPickle.load(open(filename, 'rb'))
+    
+    plume_depths = label_depths(clusters, filtered_ids, MC, 'plume')
+    plume_indices, env_indices = find_plume_indices(clusters, filtered_ids, MC)
+    env_halo = find_halo(env_indices, MC)
+    env_depth = label_depth(env_indices, env_halo, MC)
+
+    if h == None:
+        #label cloud/environment distances to cloud edge
+        distances = np.zeros(MC['ny']*MC['nx']*MC['nz'])
+        for id, depths in plume_depths.iteritems():
+            for n, indices in enumerate(depths):
+            #assuming grid spacing is equal in all directions
+                distances[indices] = -(n+.5)*MC['dx']
+            for n, indices in enumerate(env_depth):
+                distances[indices] = (n+.5)*MC['dx']
+            return distances
+    else:
+    #label cloud/environment distances to cloud edge at height level h
+        plume_ids_at_h = find_plume_ids_at_z(h, clusters, MC)
+        plume_ids_at_h = np.intersect1d(filtered_ids, plume_ids_at_h)
+        #if there are clouds at height h, compute distances to cloud edges
+        #if len(cloud_ids_at_h):
+        plume_depths = label_depths_at_z(h, clusters, plume_ids_at_h, MC, 'plume')
+        env_indices = find_indices_at_z(h, env_indices, MC)
+        env_halo = find_indices_at_z(h, env_halo, MC)
+        env_depth = label_depth(env_indices, env_halo, MC)
+
+        distances_at_h = np.empty(MC['ny']*MC['nx']*MC['nz'])
+        distances_at_h[:] = np.NAN
+
+
+        if len(plume_ids_at_h):
+            for id, depths in plume_depths.iteritems():
+                for n, indices in enumerate(depths):
+                    distances_at_h[indices] = -(n+.5)*MC['dx']
+
+                for n, indices in enumerate(env_depth):
+                    distances_at_h[indices] = (n+.5)*MC['dx']
+
+        valid_indices = np.where(np.isfinite(distances_at_h))[0]
+        distances_at_h = distances_at_h[valid_indices]
+
+        return distances_at_h, plume_ids_at_h
 
    
 
