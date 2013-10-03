@@ -3,9 +3,8 @@ import cPickle
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 from plot_clusters import contour_cloud_edge_distance, plot_cloud_edges_z, plot_plumes_xz, \
-                          plot_plumes_y, plot_plumes_xy, plot_plumes_z, find_plume_ids_at_z, \
-                          find_cloud_ids_at_z
-from util_functions import filter_clusters
+                          plot_plumes_y, plot_plumes_xy, plot_plumes_z, contour_plume_edge_distance 
+from util_functions import filter_clusters, find_cloud_ids_at_z, find_plume_ids_at_z
 
 filenames = glob.glob('/home/cpatrizi/repos/cloudtracker/pkl/cluster_objects*.pkl')
 filenames.sort()
@@ -25,10 +24,11 @@ for z in range(MC['nz']):
       print 'height level: {0}, number of plumes: {1}, number of clouds: {2}'.format(z, len(plume_ids), len(cloud_ids))
 
 
-#z = 11
-#plt.figure()
-#plot_plumes_z(filenames[t], filtered_ids, MC, z)
-#plt.title('plume (dry region only) horizontal cross section at height {0} m, timestep {1}'.format(z*MC['dz'], t))
+z = 11
+plt.figure()
+contour_plume_edge_distance(filenames[t], filtered_ids, MC, z)
+plot_plumes_z(filenames[t], filtered_ids, MC, z)
+plt.title('plume (dry region only) horizontal cross section at height {0} m, timestep {1}'.format(z*MC['dz'], t))
 plt.figure()
 plot_plumes_xz(filenames[t], filtered_ids, MC, 'add clouds')
 plt.title('x-z projections of plumes (w/ clouds) at timestep {0}'.format(t))
