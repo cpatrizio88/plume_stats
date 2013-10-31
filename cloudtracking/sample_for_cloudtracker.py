@@ -9,9 +9,9 @@ import numpy as np
 """
 script that produces netcdf files required for cloudtracker
 
-goes through all netcdf files in the current directory and outputs
+goes through all netcdf files in the specified directory and outputs
 netcdf files containing core, condensed and plume variables which are arrays of 1's and 0's
-(i.e. a masked array, to indicate which grid points should be sampled)
+(i.e. a masked array, to indicate which grid points belong to core, condensed and plume regions)
 
 (for details see: https://github.com/freedryk/cloudtracker/blob/master/README.txt)
 
@@ -22,9 +22,9 @@ netcdf files containing core, condensed and plume variables which are arrays of 
 nc_filenames = glob.glob('/tera/phil/cloudtracking/BOMEX/BOMEX*[!_cldtrcksample].nc')
 
 #if you want liquid water to be part of the sampling criteria
-#set sample_liqwater to True 
-#otherwise, if sample_liqwater is False (removes liquid water from core sampling criteria)
-sample_liqwater = False
+#set sample_liqwater to True (i.e. ouputted masked arrays will be as specified in Austin and Dawe, 2012)
+#otherwise, use dry sampling criteria (only plume and core masks will be outputted)
+sample_liqwater = True
 
 for filename in nc_filenames:
     print 'opening file: ', filename

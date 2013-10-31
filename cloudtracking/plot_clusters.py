@@ -59,10 +59,10 @@ def plot_plumes_z(filename, filtered_ids, MC, h):
     for id, cluster in clusters.iteritems():
         if id in plume_ids:
            dry_plume = np.setdiff1d(cluster.plume_mask(), cluster.condensed_mask())
-           dry_plume_z = find_indices_at_z(h, dry_plume, MC)
-           if len(dry_plume_z):
-               dry_plume_z = index_to_xy(dry_plume, MC)
-               plumes[id] = dry_plume_z
+           dry_plume = find_indices_at_z(h, dry_plume, MC)
+           if len(dry_plume):
+               dry_plume = index_to_xy(dry_plume, MC)
+               plumes[id] = dry_plume
 
     num_plumes = len(plume_ids)
     colormap = cm.Paired(np.linspace(0, 1, num_plumes))

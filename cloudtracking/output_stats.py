@@ -24,8 +24,10 @@ y = 45
 
 #------plume output-------
 
+
 lifetimes, areas, condensed_time, condensed_height  = compute_plume_vars(filenames, filtered_ids, maxid, MC)
 
+#plumes that have not condensed will have NaN entries in condensed_time and condensed_height
 ismoist = np.isfinite(condensed_time)
 
 condensed_time = condensed_time[ismoist]
@@ -88,6 +90,7 @@ print "cloud mean horizontal length scale (m): %4.3f" % np.mean(l)
 
 #get variable fields at timestep t
 fields = glob.glob('/tera/phil/sam_cpatrizi/OUT_3D/BOMEXTR*.nc')
+
 fname = fields[t]
 ncfile = Dataset(fname, 'r')
 qv = ncfile.variables['QV'][:]

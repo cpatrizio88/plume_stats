@@ -38,7 +38,7 @@ def compute_plume_vars(filenames, filtered_ids, maxid, MC):
     #initialize all plumes to False
     #has_condensed = np.zeros(maxid+1) < -1
     #track when plumes condense (i.e. the model output timestep when condensation occurs)
-    #a NAN entry signifies that the plume has not condensed
+    #a NaN entry signifies that the plume has not condensed
     condensed_time = np.empty(maxid+1)
     condensed_time[:] = np.NAN
     #keep track of height of condensation
@@ -68,6 +68,7 @@ def compute_plume_vars(filenames, filtered_ids, maxid, MC):
                dry_plume = np.setdiff1d(plume, condensed)
                #only increment lifetime of plumes if there are dry plume
                #points (i.e. the plume has not completely formed into a cloud)
+              #check here if a cloud has split off from a plume?
                if len(dry_plume) > 0:
                    lifetimes[id] = lifetimes[id] + MC['dt']
                    proj = index_to_xy(dry_plume, MC).T

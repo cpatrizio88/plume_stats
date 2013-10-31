@@ -28,6 +28,7 @@ def index_to_xy(index, MC):
     #x = index % nx
     #tmp = zip(x, y)
     #return np.unique(tmp).T
+    index = index.astype(int)
     points = index_to_zyx(index, MC)
     z = points[0,:]
     y = points[1,:]
@@ -40,6 +41,7 @@ def xy_to_index(x, y, MC):
    return nx*y + x
 
 def index_to_xz(index, MC):
+    index = index.astype(int)
     points = index_to_zyx(index, MC)
     z = points[0,:]
     y = points[1,:]
@@ -161,13 +163,14 @@ def find_plume_indices(clusters, plume_ids, MC):
         if id in plume_ids:
             dry_plume = np.setdiff1d(cluster.plume_mask(), cluster.condensed_mask())
             plume_indices = np.concatenate([plume_indices, dry_plume])
+            
 
     env_indices = np.setdiff1d(grid, plume_indices, assume_unique=True)
 
     return plume_indices, env_indices
 
 
-#calculates the distance between index1 and index2
+#calculates the distance between index1 and index2x
 #(note: index2 or index1 may be an array of indices, but not both)
 def calc_distance(index1, index2, MC):
 
@@ -188,10 +191,11 @@ def calc_distance(index1, index2, MC):
     return np.sqrt(delta_x**2 + delta_y**2 + delta_z**2)
 
 """
-returns the grid point indices at height level h
+returns the grid point indices (in input indices) at height level h
 
 """
 def find_indices_at_z(h, indices, MC):
+    indices = indices.astype(int)
     points = index_to_zyx(indices, MC)
     zcoords = points[0,:]
     ycoords = points[1,:]
@@ -211,6 +215,7 @@ def find_indices_at_z(h, indices, MC):
     #return indices[hit]
 
 def find_indices_at_y(y, indices, MC):
+    indices  = indices.astype(int)
     points = index_to_zyx(indices, MC)
     zcoords = points[0,:]
     ycoords = points[1,:]
